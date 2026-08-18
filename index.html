@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Parte de Turnos</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#232520">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EEF0EA;
+    --paper-card:#FBFBF7;
+    --ink:#232520;
+    --ink-soft:#5B5F55;
+    --line:#C9CCC0;
+    --manana:#E3A73B;
+    --tarde:#C25B3E;
+    --noche:#3E4A82;
+    --libre:#7C9473;
+    --danger:#B14A3C;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans',sans-serif;
+    -webkit-tap-highlight-color:transparent;
+  }
+  #app{max-width:520px;margin:0 auto;padding-bottom:80px;min-height:100vh;}
+
+  header{
+    position:sticky;top:0;z-index:20;
+    background:var(--paper);
+    padding:18px 16px 10px;
+    border-bottom:1px solid var(--line);
+  }
+  .title-row{display:flex;align-items:center;justify-content:space-between;}
+  .title-row h1{
+    font-family:'Oswald',sans-serif;
+    font-size:22px;
+    font-weight:600;
+    letter-spacing:0.02em;
+    margin:0;
+    text-transform:uppercase;
+  }
+  .year-nav{display:flex;align-items:center;gap:10px;}
+  .year-nav button{
+    background:none;border:1px solid var(--line);
+    width:30px;height:30px;border-radius:2px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:16px;color:var(--ink);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .year-nav button:active{background:var(--line);}
+  .year-nav .year-num{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:16px;font-weight:600;min-width:48px;text-align:center;
+  }
+
+  .stats-row{
+    display:flex;gap:8px;margin-top:12px;overflow-x:auto;padding-bottom:2px;
+  }
+  .stat-chip{
+    flex:0 0 auto;
+    display:flex;align-items:center;gap:6px;
+    background:var(--paper-card);
+    border:1px solid var(--line);
+    border-radius:2px;
+    padding:5px 9px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+  }
+  .stat-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;}
+  .stat-num{font-weight:600;}
+  .stat-label{color:var(--ink-soft);}
+
+  #months-container{padding:8px 16px 0;}
+  .month-card{
+    background:var(--paper-card);
+    border:1px solid var(--line);
+    margin-top:16px;
+    padding:14px 12px 12px;
+  }
+  .month-head{
+    display:flex;align-items:baseline;justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .month-head h2{
+    font-family:'Oswald',sans-serif;
+    font-size:16px;font-weight:600;
+    text-transform:uppercase;letter-spacing:0.04em;
+    margin:0;
+  }
+  .month-count{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;color:var(--ink-soft);
+  }
+  .weekday-row{
+    display:grid;grid-template-columns:repeat(7,1fr);
+    margin-bottom:4px;
+  }
+  .weekday-row span{
+    text-align:center;font-size:10px;color:var(--ink-soft);
+    font-family:'IBM Plex Mono',monospace;
+  }
+  .days-grid{
+    display:grid;grid-template-columns:repeat(7,1fr);
+    gap:4px;
+  }
+  .day-cell{
+    position:relative;
+    aspect-ratio:1/1;
+    background:var(--paper);
+    border-top:1px dashed var(--line);
+    border-left:1px solid var(--line);
+    border-right:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    display:flex;align-items:flex-start;justify-content:flex-start;
+    padding:3px 4px;
+    cursor:pointer;
+    overflow:hidden;
+  }
+  .day-cell.empty{visibility:hidden;}
+  .day-cell.today{border-color:var(--ink);border-width:1.5px;}
+  .day-num{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;color:var(--ink-soft);
+  }
+  .day-cell.filled .day-num{color:var(--ink);font-weight:600;}
+  .stamp{
+    position:absolute;
+    bottom:-3px;right:-3px;
+    width:24px;height:24px;
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Oswald',sans-serif;
+    font-size:11px;font-weight:700;
+    color:#FBFBF7;
+    transform:rotate(-9deg);
+    opacity:0.92;
+    box-shadow:0 0 0 2px var(--paper-card);
+  }
+  .concept-badge{
+    position:absolute;
+    top:2px;right:2px;
+    width:14px;height:14px;
+    border-radius:50%;
+    border:1px solid var(--line);
+    background:var(--paper-card);
+    color:var(--ink-soft);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:8px;
+    display:flex;align-items:center;justify-content:center;
+  }
+
+  .tabs{display:flex;gap:6px;margin-top:12px;}
+  .tab-btn{
+    flex:1;
+    background:none;border:1px solid var(--line);
+    padding:8px 0;border-radius:2px;
+    font-family:'IBM Plex Mono',monospace;font-size:12px;
+    color:var(--ink-soft);cursor:pointer;
+  }
+  .tab-btn.active{background:var(--ink);color:var(--paper-card);border-color:var(--ink);}
+
+  #rates-container{padding:16px 16px 0;}
+  .rates-intro{
+    font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin:0 0 16px;
+  }
+  .rates-card{
+    background:var(--paper-card);border:1px solid var(--line);padding:6px 14px;
+  }
+  .rate-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 0;border-bottom:1px solid var(--line);gap:10px;
+  }
+  .rate-row:last-child{border-bottom:none;}
+  .rate-name{font-size:13.5px;font-weight:500;}
+  .rate-input-wrap{display:flex;align-items:center;gap:6px;}
+  .rate-input-wrap span{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft);}
+  .rate-input{
+    width:80px;text-align:right;
+    font-family:'IBM Plex Mono',monospace;font-size:14px;
+    border:1px solid var(--line);border-radius:2px;
+    padding:7px 8px;background:var(--paper);color:var(--ink);
+  }
+  .rate-input:focus{outline:1.5px solid var(--ink);}
+  .remove-concept-btn{
+    background:none;border:1px solid var(--line);color:var(--ink-soft);
+    width:24px;height:24px;border-radius:50%;font-size:12px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+  }
+  .remove-concept-btn:active{border-color:var(--danger);color:var(--danger);}
+
+  .add-concept-form{
+    margin-top:18px;background:var(--paper-card);border:1px solid var(--line);
+    padding:14px;
+  }
+  .add-concept-form .field{margin-bottom:10px;}
+  .add-concept-form .field label{
+    display:block;font-family:'IBM Plex Mono',monospace;font-size:10px;
+    color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;
+  }
+  .add-concept-form input[type="text"],
+  .add-concept-form input[type="number"]{
+    width:100%;border:1px solid var(--line);border-radius:2px;
+    padding:9px 10px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;
+    background:var(--paper);color:var(--ink);
+  }
+  .add-concept-form .field-row{display:flex;gap:8px;}
+  .add-concept-form .field-row .field{flex:1;margin-bottom:0;}
+
+  .month-summary{
+    margin-top:10px;padding-top:9px;
+    border-top:1px dashed var(--line);
+    display:grid;grid-template-columns:1fr auto auto;column-gap:10px;row-gap:4px;
+    font-family:'IBM Plex Mono',monospace;font-size:11px;
+  }
+  .month-summary .label{color:var(--ink-soft);}
+  .month-summary .qty{text-align:right;color:var(--ink-soft);}
+  .month-summary .amount{font-weight:600;text-align:right;}
+  .month-summary .head{font-size:9px;text-transform:uppercase;letter-spacing:0.05em;}
+  .month-summary .total-row{
+    grid-column:1/-1;display:grid;grid-template-columns:1fr auto;
+    margin-top:6px;padding-top:6px;border-top:1px solid var(--line);
+    font-size:12px;
+  }
+  .month-summary .total-row .amount{font-size:13px;}
+
+  #overlay{
+    position:fixed;inset:0;background:rgba(35,37,32,0.35);
+    display:none;z-index:30;
+  }
+  #sheet{
+    position:fixed;left:0;right:0;bottom:0;z-index:31;
+    background:var(--paper-card);
+    border-top:1px solid var(--line);
+    padding:16px 20px calc(20px + env(safe-area-inset-bottom));
+    transform:translateY(100%);
+    transition:transform 0.22s ease;
+    max-width:520px;margin:0 auto;
+    max-height:85vh;overflow-y:auto;
+  }
+  #sheet.open{transform:translateY(0);}
+  #overlay.open{display:block;}
+  .sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .sheet-date{
+    font-family:'Oswald',sans-serif;
+    font-size:17px;text-transform:uppercase;
+    letter-spacing:0.03em;
+    margin:0;
+  }
+  .sheet-close{
+    background:none;border:1px solid var(--line);
+    width:28px;height:28px;border-radius:50%;
+    font-size:15px;color:var(--ink-soft);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .section-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;letter-spacing:0.06em;text-transform:uppercase;
+    color:var(--ink-soft);margin:16px 0 8px;
+  }
+  .section-label:first-of-type{margin-top:0;}
+  .shift-chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .shift-chip{
+    display:flex;align-items:center;gap:6px;
+    padding:8px 12px;
+    border:1px solid var(--line);
+    background:var(--paper);
+    border-radius:20px;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:13px;font-weight:500;
+    cursor:pointer;color:var(--ink);
+  }
+  .shift-chip .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;}
+  .shift-chip.active{background:var(--ink);color:var(--paper-card);border-color:var(--ink);}
+  .shift-chip.active .dot{box-shadow:0 0 0 2px var(--paper-card);}
+
+  .concept-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:9px 0;border-bottom:1px solid var(--line);
+  }
+  .concept-row:last-child{border-bottom:none;}
+  .concept-name{font-size:13.5px;font-weight:500;}
+  .concept-range{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-soft);display:block;}
+  .stepper{display:flex;align-items:center;gap:10px;}
+  .stepper button{
+    width:32px;height:32px;border-radius:50%;
+    border:1px solid var(--line);background:var(--paper);
+    font-size:16px;color:var(--ink);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'IBM Plex Mono',monospace;
+  }
+  .stepper button:disabled{opacity:0.3;cursor:default;}
+  .stepper .val{
+    min-width:22px;text-align:center;
+    font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px;
+  }
+
+  .sheet-actions{display:flex;flex-direction:column;gap:8px;margin-top:18px;}
+  .btn-primary{
+    background:var(--ink);color:var(--paper-card);
+    border:none;padding:12px;border-radius:2px;
+    font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:600;
+    cursor:pointer;
+  }
+  .btn-clear{
+    background:none;border:1px solid var(--danger);color:var(--danger);
+    padding:10px;border-radius:2px;font-size:13px;cursor:pointer;
+    font-family:'IBM Plex Sans',sans-serif;
+  }
+
+  .footer-actions{padding:20px 16px 0;text-align:center;}
+  .reset-link{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;color:var(--ink-soft);
+    background:none;border:none;text-decoration:underline;cursor:pointer;
+  }
+  .toast{
+    position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:var(--paper);
+    font-family:'IBM Plex Mono',monospace;font-size:12px;
+    padding:8px 14px;border-radius:2px;z-index:40;
+    opacity:0;transition:opacity 0.25s ease;pointer-events:none;
+  }
+  .toast.show{opacity:1;}
+  .loading{
+    text-align:center;padding:40px 20px;color:var(--ink-soft);
+    font-family:'IBM Plex Mono',monospace;font-size:12px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="title-row">
+      <h1>Parte de Turnos</h1>
+      <div class="year-nav">
+        <button id="prevYear" aria-label="Año anterior">‹</button>
+        <span class="year-num" id="yearLabel">—</span>
+        <button id="nextYear" aria-label="Año siguiente">›</button>
+      </div>
+    </div>
+    <div class="stats-row" id="statsRow"></div>
+    <div class="tabs">
+      <button class="tab-btn active" id="tabCalendar">Calendario</button>
+      <button class="tab-btn" id="tabRates">Tarifas</button>
+    </div>
+  </header>
+  <div id="months-container">
+    <div class="loading">Cargando turnos…</div>
+  </div>
+  <div id="rates-container" style="display:none;"></div>
+  <div class="footer-actions">
+    <button class="reset-link" id="resetBtn">Borrar todos los turnos de este año</button>
+  </div>
+</div>
+
+<div id="overlay"></div>
+<div id="sheet">
+  <div class="sheet-head">
+    <p class="sheet-date" id="sheetDate">—</p>
+    <button class="sheet-close" id="sheetCloseBtn">✕</button>
+  </div>
+
+  <div class="section-label">Turno</div>
+  <div class="shift-chips" id="shiftChips"></div>
+
+  <div class="section-label">Conceptos</div>
+  <div id="conceptRows"></div>
+
+  <div class="sheet-actions">
+    <button class="btn-primary" id="saveSheetBtn">Guardar</button>
+    <button class="btn-clear" id="clearDayBtn">Borrar todo el día</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Capa de almacenamiento compatible con localStorage (para funcionar fuera de Claude)
+const storage = {
+  async get(key){
+    const v = localStorage.getItem(key);
+    if(v === null) throw new Error('not found');
+    return { key, value: v };
+  },
+  async set(key, value){
+    localStorage.setItem(key, value);
+    return { key, value };
+  }
+};
+
+const SHIFTS = {
+  manana:     { label:'Mañana',     short:'M',  hex:'#E3A73B' },
+  tarde:      { label:'Tarde',      short:'T',  hex:'#C25B3E' },
+  noche:      { label:'Noche',      short:'N',  hex:'#3E4A82' },
+  libre:      { label:'Libre',      short:'L',  hex:'#7C9473' },
+  rj:         { label:'RJ',         short:'RJ', hex:'#4C8577' },
+  lz:         { label:'LZ',         short:'LZ', hex:'#A65B72' },
+  brigada:    { label:'Brigada',    short:'BR', hex:'#7A6C3F' },
+  sindicato:  { label:'Sindicato',  short:'SI', hex:'#6B4C7A' },
+  paternidad: { label:'Paternidad', short:'PA', hex:'#4F6D8C' },
+  vacaciones: { label:'Vacaciones', short:'VA', hex:'#2A93A8' }
+};
+let CONCEPTS = [
+  { key:'et',           label:'ET',            min:0, max:1  },
+  { key:'conduccion',   label:'Conducción',    min:0, max:4  },
+  { key:'comidaCorta',  label:'Comida corta',  min:0, max:2  },
+  { key:'comidaLarga',  label:'Comida larga',  min:0, max:2  },
+  { key:'destacamento', label:'Destacamento',  min:0, max:1  },
+  { key:'horasExtra',   label:'Horas extra',   min:0, max:20, step:0.5 }
+];
+const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const WEEKDAYS = ['L','M','X','J','V','S','D'];
+
+let currentYear = new Date().getFullYear();
+let yearData = {};
+let ratesData = {};
+let loaded = false;
+let sheetKey = null;
+let sheetTemp = null;
+let activeTab = 'calendar';
+
+const monthsContainer = document.getElementById('months-container');
+const ratesContainer = document.getElementById('rates-container');
+const tabCalendar = document.getElementById('tabCalendar');
+const tabRates = document.getElementById('tabRates');
+const yearLabel = document.getElementById('yearLabel');
+const statsRow = document.getElementById('statsRow');
+const overlay = document.getElementById('overlay');
+const sheet = document.getElementById('sheet');
+const sheetDate = document.getElementById('sheetDate');
+const shiftChips = document.getElementById('shiftChips');
+const conceptRows = document.getElementById('conceptRows');
+const toastEl = document.getElementById('toast');
+
+function pad(n){ return n.toString().padStart(2,'0'); }
+function fmt(n){
+  const r = Math.round(n*10)/10;
+  return r % 1 === 0 ? r.toString() : r.toFixed(1);
+}
+function fmtMoney(n){
+  return n.toLocaleString('es-ES', { minimumFractionDigits:2, maximumFractionDigits:2 });
+}
+function dateKey(y,m,d){ return `${y}-${pad(m+1)}-${pad(d)}`; }
+function storageKey(y){ return `turnos-${y}`; }
+function ratesKey(y){ return `tarifas-${y}`; }
+const CONCEPTS_KEY = 'conceptos-config';
+
+function slugify(name){
+  const base = name.trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+  return base || 'concepto';
+}
+function uniqueKey(name){
+  const base = slugify(name);
+  let key = base, i = 2;
+  const existing = CONCEPTS.map(c=>c.key);
+  while(existing.includes(key)){ key = `${base}_${i}`; i++; }
+  return key;
+}
+
+async function loadConcepts(){
+  try{
+    const res = await storage.get(CONCEPTS_KEY);
+    if(res && res.value){
+      const parsed = JSON.parse(res.value);
+      if(Array.isArray(parsed) && parsed.length){ CONCEPTS = parsed; return; }
+    }
+  }catch(err){ /* fall through to defaults */ }
+  await saveConcepts();
+}
+async function saveConcepts(){
+  try{
+    const res = await storage.set(CONCEPTS_KEY, JSON.stringify(CONCEPTS));
+    if(!res){ showToast('No se pudo guardar los conceptos'); }
+  }catch(err){
+    showToast('Error al guardar los conceptos');
+  }
+}
+
+function defaultRates(){
+  const r = {};
+  CONCEPTS.forEach(c=>r[c.key]=0);
+  return r;
+}
+
+async function loadRates(year){
+  try{
+    const res = await storage.get(ratesKey(year));
+    const raw = res && res.value ? JSON.parse(res.value) : {};
+    ratesData = defaultRates();
+    CONCEPTS.forEach(c=>{ if(typeof raw[c.key]==='number') ratesData[c.key] = raw[c.key]; });
+  }catch(err){
+    ratesData = defaultRates();
+  }
+}
+
+async function saveRates(year){
+  try{
+    const res = await storage.set(ratesKey(year), JSON.stringify(ratesData));
+    if(!res){ showToast('No se pudo guardar la tarifa'); }
+  }catch(err){
+    showToast('Error al guardar la tarifa');
+  }
+}
+
+function emptyDay(){
+  const d = { shift:null };
+  CONCEPTS.forEach(c=>d[c.key]=0);
+  return d;
+}
+function normalizeDay(raw){
+  if(!raw) return null;
+  if(typeof raw === 'string'){
+    const d = emptyDay();
+    d.shift = raw;
+    return d;
+  }
+  const d = emptyDay();
+  d.shift = raw.shift || null;
+  CONCEPTS.forEach(c=>{ d[c.key] = typeof raw[c.key]==='number' ? raw[c.key] : 0; });
+  return d;
+}
+function isEmptyDay(d){
+  if(!d) return true;
+  if(d.shift) return false;
+  return CONCEPTS.every(c => (d[c.key]||0) === 0);
+}
+
+function showToast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  setTimeout(()=>toastEl.classList.remove('show'), 1400);
+}
+
+async function loadYear(year){
+  loaded = false;
+  monthsContainer.innerHTML = '<div class="loading">Cargando turnos…</div>';
+  try{
+    const res = await storage.get(storageKey(year));
+    const raw = res && res.value ? JSON.parse(res.value) : {};
+    yearData = {};
+    Object.keys(raw).forEach(k=>{
+      const norm = normalizeDay(raw[k]);
+      if(norm && !isEmptyDay(norm)) yearData[k] = norm;
+    });
+  }catch(err){
+    yearData = {};
+  }
+  await loadRates(year);
+  loaded = true;
+  render();
+}
+
+async function saveYear(year){
+  try{
+    const res = await storage.set(storageKey(year), JSON.stringify(yearData));
+    if(!res){ showToast('No se pudo guardar'); }
+  }catch(err){
+    showToast('Error al guardar');
+  }
+}
+
+function computeShiftStats(){
+  const counts = {};
+  Object.keys(SHIFTS).forEach(k=>counts[k]=0);
+  const prefix = `${currentYear}-`;
+  Object.keys(yearData).forEach(k=>{
+    if(k.startsWith(prefix)){
+      const s = yearData[k].shift;
+      if(s && counts.hasOwnProperty(s)) counts[s]++;
+    }
+  });
+  return counts;
+}
+
+function computeMonthTotals(m){
+  const totals = {};
+  CONCEPTS.forEach(c=>totals[c.key]=0);
+  const daysInMonth = new Date(currentYear, m+1, 0).getDate();
+  for(let d=1; d<=daysInMonth; d++){
+    const day = yearData[dateKey(currentYear,m,d)];
+    if(day){ CONCEPTS.forEach(c=>totals[c.key]+= (day[c.key]||0)); }
+  }
+  return totals;
+}
+
+function renderStats(){
+  const counts = computeShiftStats();
+  statsRow.innerHTML = '';
+  const usedKeys = Object.keys(SHIFTS).filter(k => counts[k] > 0);
+  const keysToShow = usedKeys.length > 0 ? usedKeys : Object.keys(SHIFTS).slice(0,4);
+  keysToShow.forEach(key=>{
+    const s = SHIFTS[key];
+    const chip = document.createElement('div');
+    chip.className = 'stat-chip';
+    chip.innerHTML = `<span class="stat-dot" style="background:${s.hex}"></span><span class="stat-num">${counts[key]}</span><span class="stat-label">${s.label}</span>`;
+    statsRow.appendChild(chip);
+  });
+}
+
+function isToday(y,m,d){
+  const now = new Date();
+  return now.getFullYear()===y && now.getMonth()===m && now.getDate()===d;
+}
+
+function buildMonth(m){
+  const card = document.createElement('div');
+  card.className = 'month-card';
+
+  const head = document.createElement('div');
+  head.className = 'month-head';
+  const daysInMonth = new Date(currentYear, m+1, 0).getDate();
+  let monthCount = 0;
+  for(let d=1; d<=daysInMonth; d++){
+    if(yearData[dateKey(currentYear,m,d)]) monthCount++;
+  }
+  head.innerHTML = `<h2>${MONTHS[m]}</h2><span class="month-count">${monthCount}/${daysInMonth}</span>`;
+  card.appendChild(head);
+
+  const wRow = document.createElement('div');
+  wRow.className = 'weekday-row';
+  WEEKDAYS.forEach(w=>{
+    const s = document.createElement('span');
+    s.textContent = w;
+    wRow.appendChild(s);
+  });
+  card.appendChild(wRow);
+
+  const grid = document.createElement('div');
+  grid.className = 'days-grid';
+
+  const firstDay = new Date(currentYear, m, 1).getDay();
+  const offset = (firstDay + 6) % 7;
+
+  for(let i=0;i<offset;i++){
+    const empty = document.createElement('div');
+    empty.className = 'day-cell empty';
+    grid.appendChild(empty);
+  }
+
+  for(let d=1; d<=daysInMonth; d++){
+    const key = dateKey(currentYear,m,d);
+    const day = yearData[key];
+    const cell = document.createElement('div');
+    cell.className = 'day-cell' + (day ? ' filled' : '') + (isToday(currentYear,m,d) ? ' today' : '');
+    cell.innerHTML = `<span class="day-num">${d}</span>`;
+    if(day && day.shift && SHIFTS[day.shift]){
+      const stamp = document.createElement('span');
+      stamp.className = 'stamp';
+      stamp.style.background = SHIFTS[day.shift].hex;
+      stamp.textContent = SHIFTS[day.shift].short;
+      if(SHIFTS[day.shift].short.length > 1) stamp.style.fontSize = '9px';
+      cell.appendChild(stamp);
+    }
+    if(day){
+      const activeConcepts = CONCEPTS.filter(c => (day[c.key]||0) > 0).length;
+      if(activeConcepts > 0){
+        const badge = document.createElement('span');
+        badge.className = 'concept-badge';
+        badge.textContent = activeConcepts;
+        cell.appendChild(badge);
+      }
+    }
+    cell.addEventListener('click', ()=>openSheet(currentYear, m, d, key));
+    grid.appendChild(cell);
+  }
+
+  card.appendChild(grid);
+
+  const totals = computeMonthTotals(m);
+  const summary = document.createElement('div');
+  summary.className = 'month-summary';
+
+  const h1 = document.createElement('span'); h1.className='label head'; h1.textContent='Concepto';
+  const h2 = document.createElement('span'); h2.className='qty head'; h2.textContent='Cant.';
+  const h3 = document.createElement('span'); h3.className='amount head'; h3.textContent='Importe';
+  summary.appendChild(h1); summary.appendChild(h2); summary.appendChild(h3);
+
+  let monthTotal = 0;
+  CONCEPTS.forEach(c=>{
+    const rate = ratesData[c.key] || 0;
+    const amount = totals[c.key] * rate;
+    monthTotal += amount;
+    const label = document.createElement('span');
+    label.className = 'label';
+    label.textContent = c.label;
+    const qty = document.createElement('span');
+    qty.className = 'qty';
+    qty.textContent = fmt(totals[c.key]);
+    const value = document.createElement('span');
+    value.className = 'amount';
+    value.textContent = fmtMoney(amount) + '€';
+    summary.appendChild(label);
+    summary.appendChild(qty);
+    summary.appendChild(value);
+  });
+
+  const totalRow = document.createElement('div');
+  totalRow.className = 'total-row';
+  totalRow.innerHTML = `<span class="label">Total mes</span><span class="amount">${fmtMoney(monthTotal)}€</span>`;
+  summary.appendChild(totalRow);
+
+  card.appendChild(summary);
+
+  return card;
+}
+
+function renderRatesTab(){
+  ratesContainer.innerHTML = '';
+  const intro = document.createElement('p');
+  intro.className = 'rates-intro';
+  intro.textContent = `Define cuánto vale cada unidad de concepto en ${currentYear}. Se multiplicará por la cantidad registrada cada mes para calcular el importe. También puedes añadir o quitar conceptos.`;
+  ratesContainer.appendChild(intro);
+
+  const card = document.createElement('div');
+  card.className = 'rates-card';
+  CONCEPTS.forEach(c=>{
+    const row = document.createElement('div');
+    row.className = 'rate-row';
+    row.innerHTML = `
+      <span class="rate-name">${c.label}</span>
+      <div class="rate-input-wrap">
+        <input class="rate-input" type="number" step="0.01" min="0" inputmode="decimal" value="${ratesData[c.key]}" />
+        <span>€/ud.</span>
+        <button class="remove-concept-btn" title="Quitar concepto">✕</button>
+      </div>
+    `;
+    const input = row.querySelector('.rate-input');
+    input.addEventListener('change', async ()=>{
+      let v = parseFloat(input.value);
+      if(isNaN(v) || v < 0) v = 0;
+      ratesData[c.key] = v;
+      input.value = v;
+      await saveRates(currentYear);
+      render();
+      showToast('Tarifa guardada');
+    });
+    row.querySelector('.remove-concept-btn').addEventListener('click', async ()=>{
+      if(!confirm(`¿Quitar el concepto "${c.label}"? Dejará de aparecer al registrar días y en los resúmenes.`)) return;
+      CONCEPTS = CONCEPTS.filter(x=>x.key!==c.key);
+      delete ratesData[c.key];
+      await saveConcepts();
+      await saveRates(currentYear);
+      renderRatesTab();
+      render();
+      showToast('Concepto eliminado');
+    });
+    card.appendChild(row);
+  });
+  ratesContainer.appendChild(card);
+
+  const addForm = document.createElement('div');
+  addForm.className = 'add-concept-form';
+  addForm.innerHTML = `
+    <div class="section-label" style="margin-top:0;">Nuevo concepto</div>
+    <div class="field"><input id="newConceptName" type="text" placeholder="Nombre (ej. Nocturnidad)" /></div>
+    <div class="field-row">
+      <div class="field"><label>Mínimo</label><input id="newConceptMin" type="number" step="1" value="0" /></div>
+      <div class="field"><label>Máximo</label><input id="newConceptMax" type="number" step="1" value="10" /></div>
+      <div class="field"><label>Paso</label><input id="newConceptStep" type="number" step="0.1" value="1" /></div>
+    </div>
+    <button class="btn-primary" id="addConceptBtn" style="margin-top:10px;">Añadir concepto</button>
+  `;
+  ratesContainer.appendChild(addForm);
+
+  document.getElementById('addConceptBtn').addEventListener('click', async ()=>{
+    const nameInput = document.getElementById('newConceptName');
+    const name = nameInput.value.trim();
+    if(!name){ showToast('Escribe un nombre'); return; }
+    let min = parseFloat(document.getElementById('newConceptMin').value);
+    let max = parseFloat(document.getElementById('newConceptMax').value);
+    let step = parseFloat(document.getElementById('newConceptStep').value);
+    if(isNaN(min)) min = 0;
+    if(isNaN(max)) max = 10;
+    if(isNaN(step) || step <= 0) step = 1;
+    if(max < min) [min, max] = [max, min];
+    const key = uniqueKey(name);
+    CONCEPTS.push({ key, label:name, min, max, step });
+    ratesData[key] = 0;
+    await saveConcepts();
+    await saveRates(currentYear);
+    renderRatesTab();
+    render();
+    showToast('Concepto añadido');
+  });
+}
+
+function setTab(tab){
+  activeTab = tab;
+  tabCalendar.classList.toggle('active', tab==='calendar');
+  tabRates.classList.toggle('active', tab==='rates');
+  monthsContainer.style.display = tab==='calendar' ? '' : 'none';
+  ratesContainer.style.display = tab==='rates' ? '' : 'none';
+  if(tab==='rates') renderRatesTab();
+}
+tabCalendar.addEventListener('click', ()=>setTab('calendar'));
+tabRates.addEventListener('click', ()=>setTab('rates'));
+
+function render(){
+  yearLabel.textContent = currentYear;
+  renderStats();
+  if(!loaded) return;
+  monthsContainer.innerHTML = '';
+  for(let m=0;m<12;m++){
+    monthsContainer.appendChild(buildMonth(m));
+  }
+}
+
+function renderShiftChips(){
+  shiftChips.innerHTML = '';
+  Object.keys(SHIFTS).forEach(key=>{
+    const s = SHIFTS[key];
+    const chip = document.createElement('button');
+    chip.className = 'shift-chip' + (sheetTemp.shift===key ? ' active' : '');
+    chip.innerHTML = `<span class="dot" style="background:${s.hex}"></span>${s.label}`;
+    chip.addEventListener('click', ()=>{
+      sheetTemp.shift = (sheetTemp.shift === key) ? null : key;
+      renderShiftChips();
+    });
+    shiftChips.appendChild(chip);
+  });
+}
+
+function renderConceptRows(){
+  conceptRows.innerHTML = '';
+  CONCEPTS.forEach(c=>{
+    const row = document.createElement('div');
+    row.className = 'concept-row';
+    row.innerHTML = `
+      <div>
+        <span class="concept-name">${c.label}</span>
+        <span class="concept-range">${c.min}–${c.max}</span>
+      </div>
+      <div class="stepper">
+        <button data-act="minus" ${sheetTemp[c.key]<=c.min?'disabled':''}>−</button>
+        <span class="val">${fmt(sheetTemp[c.key])}</span>
+        <button data-act="plus" ${sheetTemp[c.key]>=c.max?'disabled':''}>+</button>
+      </div>
+    `;
+    const step = c.step || 1;
+    row.querySelector('[data-act="minus"]').addEventListener('click', ()=>{
+      sheetTemp[c.key] = Math.max(c.min, Math.round((sheetTemp[c.key]-step)*10)/10);
+      renderConceptRows();
+    });
+    row.querySelector('[data-act="plus"]').addEventListener('click', ()=>{
+      sheetTemp[c.key] = Math.min(c.max, Math.round((sheetTemp[c.key]+step)*10)/10);
+      renderConceptRows();
+    });
+    conceptRows.appendChild(row);
+  });
+}
+
+function openSheet(y, m, d, key){
+  sheetKey = key;
+  const existing = yearData[key];
+  sheetTemp = existing ? JSON.parse(JSON.stringify(existing)) : emptyDay();
+
+  const dateObj = new Date(y,m,d);
+  const formatted = dateObj.toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'long' });
+  sheetDate.textContent = formatted;
+
+  renderShiftChips();
+  renderConceptRows();
+
+  overlay.classList.add('open');
+  sheet.classList.add('open');
+}
+
+async function commitSheet(){
+  if(!sheetKey) return;
+  if(isEmptyDay(sheetTemp)){
+    delete yearData[sheetKey];
+  }else{
+    yearData[sheetKey] = sheetTemp;
+  }
+  closeSheet();
+  render();
+  await saveYear(currentYear);
+}
+
+function closeSheet(){
+  overlay.classList.remove('open');
+  sheet.classList.remove('open');
+  sheetKey = null;
+  sheetTemp = null;
+}
+
+document.getElementById('saveSheetBtn').addEventListener('click', commitSheet);
+document.getElementById('sheetCloseBtn').addEventListener('click', commitSheet);
+overlay.addEventListener('click', commitSheet);
+
+document.getElementById('clearDayBtn').addEventListener('click', async ()=>{
+  if(!sheetKey) return;
+  delete yearData[sheetKey];
+  closeSheet();
+  render();
+  await saveYear(currentYear);
+});
+
+document.getElementById('prevYear').addEventListener('click', ()=>{
+  currentYear--;
+  loadYear(currentYear);
+});
+document.getElementById('nextYear').addEventListener('click', ()=>{
+  currentYear++;
+  loadYear(currentYear);
+});
+
+document.getElementById('resetBtn').addEventListener('click', async ()=>{
+  if(!confirm(`¿Borrar todos los turnos de ${currentYear}? Esta acción no se puede deshacer.`)) return;
+  yearData = {};
+  render();
+  await saveYear(currentYear);
+  showToast('Año borrado');
+});
+
+async function init(){
+  await loadConcepts();
+  await loadYear(currentYear);
+}
+init();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
+
