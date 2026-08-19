@@ -168,6 +168,20 @@
   .tab-btn.active{background:var(--ink);color:var(--paper-card);border-color:var(--ink);}
 
   #rates-container{padding:16px 16px 0;}
+  #shifts-container{padding:16px 16px 0;}
+  .shift-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:11px 0;border-bottom:1px solid var(--line);gap:10px;
+  }
+  .shift-row:last-child{border-bottom:none;}
+  .shift-row-left{display:flex;align-items:center;gap:10px;min-width:0;}
+  .shift-color-input{
+    width:34px;height:34px;border-radius:50%;border:1px solid var(--line);
+    padding:0;flex:0 0 auto;background:none;cursor:pointer;
+  }
+  .shift-color-input::-webkit-color-swatch-wrapper{padding:2px;}
+  .shift-color-input::-webkit-color-swatch{border-radius:50%;border:none;}
+  .shift-row-name{font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .rates-intro{
     font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin:0 0 16px;
   }
@@ -350,12 +364,14 @@
     <div class="tabs">
       <button class="tab-btn active" id="tabCalendar">Calendario</button>
       <button class="tab-btn" id="tabRates">Tarifas</button>
+      <button class="tab-btn" id="tabShifts">Turnos</button>
     </div>
   </header>
   <div id="months-container">
     <div class="loading">Cargando turnos…</div>
   </div>
   <div id="rates-container" style="display:none;"></div>
+  <div id="shifts-container" style="display:none;"></div>
   <div class="footer-actions">
     <button class="reset-link" id="resetBtn">Borrar todos los turnos de este año</button>
   </div>
@@ -396,7 +412,7 @@ const storage = {
   }
 };
 
-const SHIFTS = {
+let SHIFTS = {
   manana:     { label:'Mañana',     short:'M',  hex:'#E3A73B' },
   tarde:      { label:'Tarde',      short:'T',  hex:'#C25B3E' },
   noche:      { label:'Noche',      short:'N',  hex:'#3E4A82' },
@@ -429,8 +445,10 @@ let activeTab = 'calendar';
 
 const monthsContainer = document.getElementById('months-container');
 const ratesContainer = document.getElementById('rates-container');
+const shiftsContainer = document.getElementById('shifts-container');
 const tabCalendar = document.getElementById('tabCalendar');
 const tabRates = document.getElementById('tabRates');
+const tabShifts = document.getElementById('tabShifts');
 const yearLabel = document.getElementById('yearLabel');
 const statsRow = document.getElementById('statsRow');
 const overlay = document.getElementById('overlay');
@@ -452,18 +470,18 @@ function dateKey(y,m,d){ return `${y}-${pad(m+1)}-${pad(d)}`; }
 function storageKey(y){ return `turnos-${y}`; }
 function ratesKey(y){ return `tarifas-${y}`; }
 const CONCEPTS_KEY = 'conceptos-config';
+const SHIFTS_KEY = 'tipos-turno-config';
 
 function slugify(name){
   const base = name.trim().toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
     .replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
-  return base || 'concepto';
+  return base || 'item';
 }
-function uniqueKey(name){
+function uniqueKey(name, existingKeys){
   const base = slugify(name);
   let key = base, i = 2;
-  const existing = CONCEPTS.map(c=>c.key);
-  while(existing.includes(key)){ key = `${base}_${i}`; i++; }
+  while(existingKeys.includes(key)){ key = `${base}_${i}`; i++; }
   return key;
 }
 
@@ -483,6 +501,25 @@ async function saveConcepts(){
     if(!res){ showToast('No se pudo guardar los conceptos'); }
   }catch(err){
     showToast('Error al guardar los conceptos');
+  }
+}
+
+async function loadShiftsConfig(){
+  try{
+    const res = await storage.get(SHIFTS_KEY);
+    if(res && res.value){
+      const parsed = JSON.parse(res.value);
+      if(parsed && typeof parsed === 'object' && Object.keys(parsed).length){ SHIFTS = parsed; return; }
+    }
+  }catch(err){ /* fall through to defaults */ }
+  await saveShiftsConfig();
+}
+async function saveShiftsConfig(){
+  try{
+    const res = await storage.set(SHIFTS_KEY, JSON.stringify(SHIFTS));
+    if(!res){ showToast('No se pudo guardar los turnos'); }
+  }catch(err){
+    showToast('Error al guardar los turnos');
   }
 }
 
@@ -615,6 +652,7 @@ function isToday(y,m,d){
 function buildMonth(m){
   const card = document.createElement('div');
   card.className = 'month-card';
+  card.id = `month-${m}`;
 
   const head = document.createElement('div');
   head.className = 'month-head';
@@ -783,7 +821,7 @@ function renderRatesTab(){
     if(isNaN(max)) max = 10;
     if(isNaN(step) || step <= 0) step = 1;
     if(max < min) [min, max] = [max, min];
-    const key = uniqueKey(name);
+    const key = uniqueKey(name, CONCEPTS.map(c=>c.key));
     CONCEPTS.push({ key, label:name, min, max, step });
     ratesData[key] = 0;
     await saveConcepts();
@@ -794,16 +832,87 @@ function renderRatesTab(){
   });
 }
 
+function renderShiftsTab(){
+  shiftsContainer.innerHTML = '';
+  const intro = document.createElement('p');
+  intro.className = 'rates-intro';
+  intro.textContent = 'Añade tipos de turno nuevos o cambia el color de los que ya tienes. Los cambios se aplican a todos los años.';
+  shiftsContainer.appendChild(intro);
+
+  const card = document.createElement('div');
+  card.className = 'rates-card';
+  Object.keys(SHIFTS).forEach(key=>{
+    const s = SHIFTS[key];
+    const row = document.createElement('div');
+    row.className = 'shift-row';
+    row.innerHTML = `
+      <div class="shift-row-left">
+        <input class="shift-color-input" type="color" value="${s.hex}" title="Cambiar color" />
+        <span class="shift-row-name">${s.label}</span>
+      </div>
+      <button class="remove-concept-btn" title="Quitar turno">✕</button>
+    `;
+    row.querySelector('.shift-color-input').addEventListener('input', async (e)=>{
+      SHIFTS[key].hex = e.target.value;
+      await saveShiftsConfig();
+      render();
+    });
+    row.querySelector('.remove-concept-btn').addEventListener('click', async ()=>{
+      if(!confirm(`¿Quitar el turno "${s.label}"? Dejará de estar disponible al registrar días.`)) return;
+      delete SHIFTS[key];
+      await saveShiftsConfig();
+      renderShiftsTab();
+      render();
+      showToast('Turno eliminado');
+    });
+    card.appendChild(row);
+  });
+  shiftsContainer.appendChild(card);
+
+  const addForm = document.createElement('div');
+  addForm.className = 'add-concept-form';
+  addForm.innerHTML = `
+    <div class="section-label" style="margin-top:0;">Nuevo turno</div>
+    <div class="field"><input id="newShiftName" type="text" placeholder="Nombre (ej. Formación)" /></div>
+    <div class="field">
+      <label>Color</label>
+      <input id="newShiftColor" type="color" value="#7C9473" class="shift-color-input" style="width:44px;height:34px;" />
+    </div>
+    <button class="btn-primary" id="addShiftBtn" style="margin-top:10px;">Añadir turno</button>
+  `;
+  shiftsContainer.appendChild(addForm);
+
+  document.getElementById('addShiftBtn').addEventListener('click', async ()=>{
+    const nameInput = document.getElementById('newShiftName');
+    const name = nameInput.value.trim();
+    if(!name){ showToast('Escribe un nombre'); return; }
+    const color = document.getElementById('newShiftColor').value;
+    const key = uniqueKey(name, Object.keys(SHIFTS));
+    const short = name.trim().slice(0,2).toUpperCase();
+    SHIFTS[key] = { label:name, short, hex:color };
+    await saveShiftsConfig();
+    renderShiftsTab();
+    render();
+    showToast('Turno añadido');
+  });
+}
+
 function setTab(tab){
   activeTab = tab;
   tabCalendar.classList.toggle('active', tab==='calendar');
   tabRates.classList.toggle('active', tab==='rates');
+  tabShifts.classList.toggle('active', tab==='shifts');
   monthsContainer.style.display = tab==='calendar' ? '' : 'none';
   ratesContainer.style.display = tab==='rates' ? '' : 'none';
+  shiftsContainer.style.display = tab==='shifts' ? '' : 'none';
   if(tab==='rates') renderRatesTab();
+  if(tab==='shifts') renderShiftsTab();
 }
 tabCalendar.addEventListener('click', ()=>setTab('calendar'));
 tabRates.addEventListener('click', ()=>setTab('rates'));
+tabShifts.addEventListener('click', ()=>setTab('shifts'));
+
+let initialScrollDone = false;
 
 function render(){
   yearLabel.textContent = currentYear;
@@ -812,6 +921,19 @@ function render(){
   monthsContainer.innerHTML = '';
   for(let m=0;m<12;m++){
     monthsContainer.appendChild(buildMonth(m));
+  }
+  const realNow = new Date();
+  if(!initialScrollDone && currentYear === realNow.getFullYear()){
+    initialScrollDone = true;
+    requestAnimationFrame(()=>{
+      const el = document.getElementById(`month-${realNow.getMonth()}`);
+      const headerEl = document.querySelector('header');
+      if(el){
+        const offset = headerEl ? headerEl.offsetHeight + 8 : 0;
+        const top = el.getBoundingClientRect().top + window.pageYOffset - offset;
+        window.scrollTo({ top, behavior:'auto' });
+      }
+    });
   }
 }
 
@@ -925,6 +1047,7 @@ document.getElementById('resetBtn').addEventListener('click', async ()=>{
 
 async function init(){
   await loadConcepts();
+  await loadShiftsConfig();
   await loadYear(currentYear);
 }
 init();
